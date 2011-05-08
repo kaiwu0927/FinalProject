@@ -1,0 +1,58 @@
+This is a video tutorial of how to use Octave package Financial. 
+
+I'm Huimin Jia and my partner is Kai Wu. 
+
+You can get this package from website: Octave-Forge. fFrther install information can be checked in the PDF file. 
+
+Financial is a package mainly used in stock. It can hook on google finance and download everyday exchange information of a certain stock.But first you must make sure google finance has the information you want.
+
+The main use of this package is evaluation. It can calculate the data you download to meet a certain need. And you can get a visualized statistics just like chart you can see in Stock exchange.
+
+Let's try to connect yahoo company.
+
+
+The first input is the website you want to connect. In the package it has only two finance site, google and yahoo, this means you can only get information from these two site. Other website may be added in future.
+
+The Second input is the stock name. the stock name must be excelly as it in google site.  like Yahoo conpany, the stock name is YHOO,
+and Nike company's name is NKE.
+
+The next two input is start date and end date. you must input serial date number. You can use function datenum to change date to that format.
+
+The last input is period, you can choose daily or weekly. Here we choose daily, type d. than run it. 
+
+The output has noly 5 rows, this is because end date is actually before one day you type. If you want yesterday's stock information, you should type today.
+
+The first colume is date. Because this will be used in other function, it keeps datenum format.
+
+From second to fifth colume are stock price. Last colume is stock volume.
+
+you can see information in a cell. For this, you must define output format.
+
+The f[1,1] should be date, because it uses a function called urlwrite that came from dependency package. So maybe this is a transform error. 
+
+For Kai Wu's Part, the words are all about the open and click events. So they are omitted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
