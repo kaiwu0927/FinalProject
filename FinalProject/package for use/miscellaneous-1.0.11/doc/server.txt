@@ -1,0 +1,118 @@
+You can talk to octave directly from other environments over the tcp/ip.
+The protocol is not sophisticated.
+
+Here is what you can send to octave: 
+
+!!!x length command
+
+	evaluate command in octave.  
+	length is a 32-bit network order integer.
+	command is a string (without zero-terminator).
+
+!!!m length name
+
+	send matrix back to client.
+	length is a 32-bit network order integer.
+	name is a string (without zero-terminator).
+
+	I don't use the !!!m command to the server because it is the same as
+
+	    !!!x send('name', matrix expression)
+
+	The latter is much more useful because you don't have to name
+	the data that you are sending across.
+
+!!!n length namelen name command
+
+	*** Not implemented ***
+	Evaluate the command in the namespace.  This needs a lookup table
+		Map<string,symbol_table> namespace
+	and a command 
+		evalin(symbol_table,command)
+	The function evalin pushes the given symbol table onto curr_sym_tab,
+	evaluates the command then pops the symbol table.
+
+Here is what you will receive from octave:
+
+!!!m length rows columns namelength name data
+
+	recieve matrix from server.
+	length,rows,columns,namelength are 32-bit network order integers.
+	name is a string (without zero-terminator).
+	data is an array of rows*columns server order double values.
+
+	This is sent in response to a !!!m matrix request or a
+	send('name',matrix) command.
+
+	The first thing I do when I open a connection is request a matrix
+	containing 1.0.  If the result is not 1.0, I know that I need to
+	swap the data to convert from server order to client order doubles.
+
+!!!s length strlen namelen name str
+
+	receive string from server.
+	length, strlen, namelen are 32-bit network order integers.
+	name is a string (without zero-terminator).
+	str is a string (without zero-terminator).
+
+	This is sent in response to a send('name',string) command.
+
+!!!x length str
+
+	evaluate string in client.
+	length is a 32-bit network order integer.
+	str is a string (without zero-terminator).
+
+	This is sent in response to a send('str').  The contents of str
+	are completely arbitrary (and may indeed contain binary data).  It is
+	up to the client to decide how they want to interpret these strings.
+
+!!!e length error
+
+	receive error from octave.
+	length is a 32-bit network order integer.
+	error is a string (without zero-terminator).
+
+	This is sent in response to a !!!x command which produced an error.
+
+Composite values can be decomposed into their constituent parts.  E.g.,
+    structures:
+	for [v,k]=x, send([name,'.',k],v); end
+    complex arrays:
+	send([name,'.real'],real(x));
+	send([name,'.imag'],imag(x));
+    sparse arrays: 
+	[v,i,j] = spfind(x);
+	send([name,'.i'],i);
+	send([name,'.j'],j);
+	send([name,'.v'],v);
+    cell arrays: 
+	[nr,nc]=size(x);
+	for r=1:nr, for c=1:nc, send([name,sprintf('.%d.%d',r,c)],x{r,c}); end
+
+Note that the communication is completely asynchronous.  I have a tcl client
+that processes server responses via fileevent.  That means that responses from
+octave are not processed until tcl enters its event loop.
+
+To be sure that octave has processed a command I follow that command with a
+synchronization sequence:
+
+	set sync[incr syncid] 1
+	octave eval "send('unset sync$syncid')"
+	vwait sync$syncid
+
+In practice it is more complicated than that because I allow the
+syncronization command to time out just in case octave crashed out from
+underneath me, but the idea is the same.
+
+Using sockets gives you platform independence and network transparency,
+which is a big win.  The only caveat is that winsock is slow.  The best I
+can do with dedicated winsock code on my machine is .3 seconds to transfer
+a 1 Mb message.  Under tcl/tk, it was closer to 1 second IIRC.  A memory
+copy of the same size took less than 0.06 seconds IIRC.
+
+That is why I'm working on a way to embed octave into tcl.  Hopefully
+it will be easy to embed in other environments as well.
+
+Paul Kienzle
+2003

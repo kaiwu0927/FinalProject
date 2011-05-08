@@ -1,0 +1,349 @@
+<!-- -*- XML -*- -->
+<!--
+  -- Copyright (C) 2004 Laurent Mazet
+  --
+  -- This program is free software; you can redistribute it and/or modify
+  -- it under the terms of the GNU General Public License as published by
+  -- the Free Software Foundation; either version 2 of the License, or
+  -- (at your option) any later version.
+  --
+  -- This program is distributed in the hope that it will be useful,
+  -- but WITHOUT ANY WARRANTY; without even the implied warranty of
+  -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  -- GNU General Public License for more details.
+  --
+  -- You should have received a copy of the GNU General Public License
+  -- along with this program; if not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<!-- 2004-01-25
+  --   initial release
+  -->
+
+<!DOCTYPE actions SYSTEM "flexml-act.dtd">
+
+<actions>
+
+<!-- Top -->
+
+<top><![CDATA[
+#ifndef _MSC_VER
+#include <stdlib.h>
+#endif
+#include "xmltree.h"
+
+#define warning perror
+
+element **current;
+element *root;
+list *lastlist;
+]]></top>
+
+<!-- Data -->
+
+<start tag='octave'><![CDATA[
+root = new_element();
+root->def_value = value_data;
+current = &(root->child);
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+]]></start>
+
+<end tag='octave'><![CDATA[
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+current = &((*current)->next);
+]]></end>
+
+<!-- Scalar -->
+
+<start tag='scalar'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+(*current)->def_value = value_scalar;
+switch ({value}) {
+  case {value=true}: (*current)->const_value = const_true; break;
+  case {value=false}: (*current)->const_value = const_false; break;
+  case {value=inf}: (*current)->const_value = const_inf; break;
+  case {value=neginf}: (*current)->const_value = const_neginf; break;
+  case {value=nan}: (*current)->const_value = const_nan; break;
+  case {value=na}: (*current)->const_value = const_na; break;
+  default: (*current)->const_value = const_undef;
+}
+]]></start>
+
+<end tag='scalar'><![CDATA[
+if (((*current)->const_value == const_undef) && ({#PCDATA}))
+  (*current)->scalar_value = strtod ({#PCDATA}, NULL);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- String -->
+
+<start tag='string'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+if ({length})
+  (*current)->length = strtol ({length}, NULL, 10);
+
+(*current)->def_value = value_string;
+]]></start>
+
+<end tag='string'><![CDATA[
+if ({#PCDATA}) {
+
+  int len = strlen({#PCDATA});
+  /* check length parameter */
+  if ((*current)->length != len) {
+    warning("incorrect length parameter for string\n");
+    (*current)->length = len;
+  }
+
+  (*current)->string_value = (char *) malloc ((len+1) * sizeof(char));
+  strcpy((*current)->string_value, {#PCDATA});
+}
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Complex -->
+
+<start tag='complex'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+(*current)->def_value = value_complex;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='complex'><![CDATA[
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Array -->
+
+<start tag='array'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+if ({rows})
+  (*current)->rows = strtol ({rows}, NULL, 10);
+
+(*current)->def_value = value_array;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='array'><![CDATA[
+/* check rows parameter */
+if ((*(lastlist->root))->rows != (*(lastlist->root))->nb_elements) {
+  warning("incorrect length parameter for array\n");
+  (*(lastlist->root))->rows = (*(lastlist->root))->nb_elements;
+}
+
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Matrix -->
+
+<start tag='matrix'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+if ({rows})
+  (*current)->rows = strtol ({rows}, NULL, 10);
+
+if ({columns})
+  (*current)->columns = strtol ({columns}, NULL, 10);
+
+(*current)->def_value = value_matrix;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='matrix'><![CDATA[
+/* check (rows, columns) parameters */
+if ((*(lastlist->root))->rows * (*(lastlist->root))->columns != 
+    (*(lastlist->root))->nb_elements) {
+  warning("incorrect (rows, columns) parameters for matrix: reshaping matrix into vector\n");
+  (*(lastlist->root))->rows = 1;
+  (*(lastlist->root))->columns = (*(lastlist->root))->nb_elements;  
+}
+
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Structure -->
+
+<start tag='structure'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+(*current)->def_value = value_structure;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='structure'><![CDATA[
+/* no check possible (sic) */
+
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- List -->
+
+<start tag='list'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+if ({length})
+  (*current)->length = strtol ({length}, NULL, 10);
+
+(*current)->def_value = value_list;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='list'><![CDATA[
+/* check length parameter */
+if ((*(lastlist->root))->length != (*(lastlist->root))->nb_elements) {
+  warning("incorrect length parameter for list\n");
+  (*(lastlist->root))->length = (*(lastlist->root))->nb_elements;
+}
+
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Cell -->
+
+<start tag='cell'><![CDATA[
+*current = new_element();
+
+if ({name}) {
+  (*current)->name = (char *) malloc(strlen({name})+1);
+  strcpy ((*current)->name, {name});
+}
+
+if ({rows})
+  (*current)->rows = strtol ({rows}, NULL, 10);
+
+if ({columns})
+  (*current)->columns = strtol ({columns}, NULL, 10);
+
+(*current)->def_value = value_cell;
+
+lastlist = new_list(lastlist);
+lastlist->root = current;
+current = &((*current)->child);
+]]></start>
+
+<end tag='cell'><![CDATA[
+/* check (rows, columns) parameters */
+if ((*(lastlist->root))->rows * (*(lastlist->root))->columns != 
+    (*(lastlist->root))->nb_elements) {
+  warning("incorrect (rows, columns) parameters for cell: reshaping cell into list\n");
+  (*(lastlist->root))->def_value = value_list;
+  (*(lastlist->root))->length = (*(lastlist->root))->nb_elements;  
+}
+
+current = lastlist->root;
+lastlist = pop_list(lastlist);
+
+(*(lastlist->root))->nb_elements++;
+
+current = &((*current)->next);
+]]></end>
+
+<!-- Main -->
+
+<main>
+element *read_xmltree (const char *file) {
+
+  current = NULL;
+  root = NULL;
+  lastlist = NULL;
+
+  xml_in = fopen(file, "r");
+  if (!xml_in)
+    perror("can't open file\n");
+
+  xml_lex();
+  fclose(xml_in);
+  
+  return root;
+}
+</main>
+
+</actions>
